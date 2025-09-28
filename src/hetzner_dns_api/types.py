@@ -6,7 +6,12 @@ import msgspec
 
 
 class HetznerTime(datetime):
-    pass
+    """
+    Custom datetime instance.
+
+    This class is identical to datetime.datetime, and exists only to facilitate
+    encoding/decoding the custom time format that Hetzner uses.
+    """
 
 
 class VerifiedTime:

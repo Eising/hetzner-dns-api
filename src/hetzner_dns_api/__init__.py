@@ -14,7 +14,7 @@ You should never need to initialize any of the other classes yourself.
 
 from .api import HetznerDNS
 from .records import DnsBulkCreateRecord, DnsBulkUpdateRecord, DnsRecord
-from .types import *
+from . import types
 from .zone import DnsZone
 
 __all__ = [

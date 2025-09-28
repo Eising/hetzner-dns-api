@@ -1,6 +1,5 @@
 """Tests for Zones."""
 
-import msgspec
 import pytest
 from hetzner_dns_api.types import DnsRecordItemResponse, DnsRecordListResponse, DnsZoneGetResponse, DnsZoneListResponse
 from hetzner_dns_api.decoding import decode_object

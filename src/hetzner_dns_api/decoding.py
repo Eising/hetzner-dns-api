@@ -2,7 +2,6 @@
 
 from typing import Any, TypeVar
 import msgspec
-from datetime import datetime
 
 from .types import HetznerTime, VerifiedTime
 
