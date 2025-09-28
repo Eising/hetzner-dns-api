@@ -50,13 +50,23 @@ def lookup_zone_id(api: HetznerDNS, id_or_name: str) -> str | None:
 @click.option("--api-key", envvar="HETZNER_API_KEY")
 @click.pass_context
 def cli(ctx: click.Context, api_key: str) -> None:
-    """Click context."""
+    """Hetzner DNS API CLI client.
+
+    Manage your hetzner DNS zones and entries.
+
+    You must specify the API key either with --api-key or using the environment
+    variable HETZNER_API_KEY.
+
+    """
     ctx.obj = HetznerDNS(api_key)
 
 
 @cli.group("zone")
 def cli_zone():
-    pass
+    """Manage DNS Zones.
+
+    List or export your DNS zones using one of the available sub-commands.
+    """
 
 
 @cli_zone.command("list")
@@ -67,7 +77,10 @@ def cli_zone():
 def cli_zone_list(
     ctx: click.Context, name: str | None, search: bool, plain: bool
 ) -> None:
-    """List DNS zones."""
+    """List DNS zones.
+
+    You may narrow the zones returned with the options.
+    """
     api = cast(HetznerDNS, ctx.obj)
     table_format = "simple" if plain else "rounded_grid"
 
@@ -142,7 +155,7 @@ def cli_record_list(ctx: click.Context, zone_id_or_name: str, plain: bool) -> No
 @cli_record.command("create")
 @click.argument("zone-id-or-name")
 @click.argument("name")
-@click.argument("type", type=click.Choice(RecordTypeCreatable, case_sensitive=False))
+@click.argument("type", type=click.Choice(RecordTypeCreatable, case_sensitive=True))
 @click.argument("value")
 @click.option("--ttl", type=click.INT)
 @click.pass_context
@@ -168,7 +181,7 @@ def cli_record_add(
 @cli_record.command("update")
 @click.argument("record-id")
 @click.option("--name")
-@click.option("--type", type=click.Choice(RecordTypeCreatable, case_sensitive=False))
+@click.option("--type", type=click.Choice(RecordTypeCreatable, case_sensitive=True))
 @click.option("--value")
 @click.option("--ttl", type=click.INT)
 @click.pass_context

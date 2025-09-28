@@ -1,4 +1,4 @@
-"""DNS Zone iterator."""
+"""DNS Zone sub-API."""
 
 from collections.abc import Iterator
 from typing import Self
@@ -15,6 +15,8 @@ from .types import (
 )
 from .base import HetznerApiError, BaseApiView
 from .decoding import decode_object
+
+__docformat__ = "google"
 
 
 class ZoneIterator:
@@ -106,17 +108,31 @@ class ZoneIterator:
 
 
 class DnsZone(BaseApiView):
-    """DNS Zone."""
+    """DNS Zone sub-API.
+
+    This class is automatically created for you by the `HetznerDNS` class.
+
+    This means that all methods are available under the `.zones` property of
+    that class, so for example the `all()` function here would be called as
+    `.zones.all()` on an instance of that class.
+    """
 
     def count(self, zone_id: str) -> int:
-        """Get a count of the records in a zone."""
+        """Count the amount of records in a zone."""
         zone = self.get(zone_id)
         return zone.records_count
 
     def get_id(self, name: str) -> str | None:
-        """Get the ID of a domain."""
+        """Get the ID of a domain.
+
+        Args:
+            name: Domain name
+
+        Returns:
+            ID string of the domain if it exists, or None.
+        """
         params: dict[str, str] = {"name": name}
-        response = self.client.get("/zones", params=params)
+        response = self._client.get("/zones", params=params)
         zones = decode_object(response.text, type=DnsZoneListResponse)
         if zones.zones:
             return zones.zones[0].id
@@ -127,58 +143,95 @@ class DnsZone(BaseApiView):
         name: str | None = None,
         search: bool = False,
     ) -> Iterator[DnsZoneResponse]:
-        """Iterate all zones."""
+        """Iterate all zones.
+
+        Args:
+            name: Optional name to filter
+            search: If true, returns zones that include `name` in their domain name,
+              otherwise the name must match exactly.
+
+        Yields:
+            `hetzner_dns_api.types.DnsZoneResponse`
+
+        """
         params: dict[str, str] = {}
         if name and not search:
             params["name"] = name
         elif name and search:
             params["search_name"] = name
 
-        response = self.client.get("/zones", params=params)
-        iterator = ZoneIterator(self.client, response)
+        response = self._client.get("/zones", params=params)
+        iterator = ZoneIterator(self._client, response)
         for result in iterator:
             yield result
 
     def create(self, name: str, ttl: int | None = None) -> DnsZoneResponse:
-        """Create a zone."""
+        """Create a zone.
+
+        Args:
+            name: the domain name
+            ttl: Optional default TTL for the zone.
+        """
         params: dict[str, str | int] = {"name": name}
         if ttl:
             params["ttl"] = ttl
-        response = self.client.post("/zones", params=params)
+        response = self._client.post("/zones", params=params)
         self._validate_response(response)
         data = decode_object(response.text, DnsZoneGetResponse)
         return data.zone
 
     def get(self, zone_id: str) -> DnsZoneResponse:
-        """Get a single zone by ID."""
+        """Get a single zone by ID.
+
+        Args:
+            zone_id: The ID string of the zone.
+
+        Returns:
+            `hetzner_dns_api.types.DnsZoneResponse`
+        """
         path = f"/zones/{zone_id}"
-        response = self.client.get(path)
+        response = self._client.get(path)
         self._validate_response(response)
         return decode_object(response.text, type=DnsZoneGetResponse).zone
 
     def update(
         self, zone_id: str, name: str, ttl: int | None = None
     ) -> DnsZoneResponse:
-        """Update zone."""
+        """Update zone.
+
+        Args:
+            zone_id: The ID string of the zone
+            name: The name of the zone
+            ttl: Optional new default TTL.
+
+        Returns:
+            `hetzner_dns_api.types.DnsZoneResponse`
+        """
         path = f"/zones/{zone_id}"
         body: dict[str, str | int] = {"name": name}
         if ttl:
             body["ttl"] = ttl
 
-        response = self.client.put(path, json=body)
+        response = self._client.put(path, json=body)
         self._validate_response(response)
         return decode_object(response.text, type=DnsZoneGetResponse).zone
 
     def delete(self, zone_id: str) -> None:
         """Delete a zone."""
         path = f"/zones/{zone_id}/import"
-        response = self.client.delete(path)
+        response = self._client.delete(path)
         self._validate_response(response)
 
     def import_zone(self, zone_id: str, content: str) -> DnsZoneResponse:
-        """Import zone from string."""
+        """Import zone from string.
+
+        The content must be a valid DNS zone as a string.
+
+        Returns:
+            `hetzner_dns_api.types.DnsZoneResponse`
+        """
         path = f"/zones/{zone_id}"
-        response = self.client.post(
+        response = self._client.post(
             path, headers={"Content-Type": "text/plain"}, content=content
         )
         self._validate_response(response)
@@ -186,16 +239,29 @@ class DnsZone(BaseApiView):
         return decode_object(response.text, type=DnsZoneGetResponse).zone
 
     def export_zone(self, zone_id: str) -> str:
-        """Export a zone to a string."""
+        """Export a zone to a string.
+
+        Returns:
+            Zone file as a string
+        """
         path = f"/zones/{zone_id}/export"
-        response = self.client.get(path)
+        response = self._client.get(path)
         self._validate_response(response)
         return response.text
 
     def validate_zone(self, zone_id: str, content: str) -> DnsZoneValidationResponse:
-        """Validate zone."""
+        """Validate zone.
+
+        Args:
+            zone_id: str
+            content: A DNS zone in BIND format, string
+
+        Returns:
+            `hetzner_dns_api.types.DnsZoneValidationResponse`
+
+        """
         path = f"/zones/{zone_id}/validate"
-        response = self.client.post(
+        response = self._client.post(
             path, headers={"Content-Type": "text/plain"}, content=content
         )
         self._validate_response(response)

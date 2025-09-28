@@ -1,5 +1,6 @@
 """DNS Record API view."""
 
+
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import override
@@ -20,11 +21,17 @@ from .types import (
 
 from .decoding import decode_object, encode_object
 
+__docformat__ = "google"
+
 class DnsBulkUpdateRecord(BaseApiView):
     """DNS Bulk Update handler."""
 
     @override
     def __init__(self, client: httpx.Client) -> None:
+        """Create instance.
+
+        @private
+        """
         super().__init__(client)
         self.records: DnsRecordBulkUpdateRequest = DnsRecordBulkUpdateRequest()
 
@@ -37,7 +44,16 @@ class DnsBulkUpdateRecord(BaseApiView):
         value: str,
         ttl: int | None = None,
     ) -> None:
-        """Add a record for update."""
+        """Add a record to be updated.
+
+        Args:
+            record_id: The ID of the record
+            zone_id: The ID of the parent zone
+            name: The record name (e.g., www)
+            record_type: A valid record type string e.g., A, AAAA or CNAME
+            value: The value/content of the record e.g., an IP address
+            ttl: Optional TTL value for the record. Defaults to the zone default TTL.
+        """
         record_type = RecordTypeCreatable(record_type)
         record = DnsRecordUpdateRequest(
             id=record_id,
@@ -50,9 +66,18 @@ class DnsBulkUpdateRecord(BaseApiView):
         self.records.records.append(record)
 
     def submit(self) -> DnsBulkRecordUpdateResponse:
-        """Submit the records for creation."""
+        """Submit the records for creation.
+
+        This sends all entries that were added with the `add()` method in a
+        single API request.
+
+        Returns:
+            `hetzner_dns_api.types.DnsBulkRecordUpdateResponse`
+              This contains a list of valid and invalid updates.
+
+        """
         body = encode_object(self.records)
-        response = self.client.put(
+        response = self._client.put(
             "/records/bulk", headers={"Content-Type": "application/json"}, content=body
         )
         self._validate_response(response)
@@ -64,6 +89,10 @@ class DnsBulkCreateRecord(BaseApiView):
 
     @override
     def __init__(self, client: httpx.Client) -> None:
+        """Create instance.
+
+        @private
+        """
         super().__init__(client)
         self.records: DnsRecordBulkCreateRequest = DnsRecordBulkCreateRequest()
 
@@ -75,7 +104,15 @@ class DnsBulkCreateRecord(BaseApiView):
         value: str,
         ttl: int | None = None,
     ) -> None:
-        """Add a record for creation."""
+        """Add a record for creation.
+
+        Args:
+            zone_id: The ID of the parent zone
+            name: The record name (e.g., www)
+            record_type: A valid record type string e.g., A, AAAA or CNAME
+            value: The value/content of the record e.g., an IP address
+            ttl: Optional TTL value for the record. Defaults to the zone default TTL.
+        """
         record_type = RecordTypeCreatable(record_type)
         record = DnsRecordRequest(
             zone_id=zone_id, name=name, value=value, type=record_type, ttl=ttl
@@ -83,9 +120,18 @@ class DnsBulkCreateRecord(BaseApiView):
         self.records.records.append(record)
 
     def submit(self) -> DnsBulkRecordCreateResponse:
-        """Submit the records for creation."""
+        """Submit the records for creation.
+
+        This sends all entries that were added with the `add()` method in a
+        single API request.
+
+        Returns:
+            `hetzner_dns_api.types.DnsBulkRecordCreateResponse`
+              This contains a list of valid and invalid entries in the request.
+
+        """
         body = encode_object(self.records)
-        response = self.client.post(
+        response = self._client.post(
             "/records/bulk", headers={"Content-Type": "application/json"}, content=body
         )
         self._validate_response(response)
@@ -96,17 +142,32 @@ class DnsRecord(BaseApiView):
     """DNS Record API view."""
 
     def all(self, zone_id: str) -> Iterator[DnsRecordResponse]:
-        """Iterate all records."""
-        response = self.client.get("/records", params={"zone_id": zone_id})
+        """Iterate all records.
+
+        Args:
+            zone_id: The ID string of the zone
+
+        Yields:
+            `hetzner_dns_api.types.DnsRecordResponse`
+
+        """
+        response = self._client.get("/records", params={"zone_id": zone_id})
         self._validate_response(response)
         records = decode_object(response.text, type=DnsRecordListResponse)
         for record in records.records:
             yield record
 
     def get(self, record_id: str) -> DnsRecordResponse:
-        """Get record."""
+        """Get a single record.
+
+        Args:
+            record_id: The ID of the record.
+
+        Returns:
+            `hetzner_dns_api.types.DnsRecordResponse`
+        """
         path = f"/records/{record_id}"
-        response = self.client.get(path)
+        response = self._client.get(path)
         self._validate_response(response)
         data = decode_object(response.text, type=DnsRecordItemResponse)
         return data.record
@@ -119,13 +180,24 @@ class DnsRecord(BaseApiView):
         value: str,
         ttl: int | None = None,
     ) -> DnsRecordResponse:
-        """Create a record."""
+        """Create a record.
+
+        Args:
+            zone_id: The ID of the parent zone
+            name: The record name (e.g., www)
+            record_type: A valid record type string e.g., A, AAAA or CNAME
+            value: The value/content of the record e.g., an IP address
+            ttl: Optional TTL value for the record. Defaults to the zone default TTL.
+
+        Returns:
+            `hetzner_dns_api.types.DnsRecordResponse`
+        """
         record_type = RecordTypeCreatable(record_type)
         request = DnsRecordRequest(
             zone_id=zone_id, name=name, value=value, type=record_type, ttl=ttl
         )
         body = encode_object(request)
-        response = self.client.post(
+        response = self._client.post(
             "/records", headers={"Content-Type": "application/json"}, content=body
         )
         self._validate_response(response)
@@ -141,14 +213,27 @@ class DnsRecord(BaseApiView):
         value: str,
         ttl: int | None = None,
     ) -> DnsRecordResponse:
-        """Update record."""
+        """Update record.
+
+        Args:
+            record_id: The ID of the record to update
+            zone_id: The ID of the parent zone
+            name: The record name (e.g., www)
+            record_type: A valid record type string e.g., A, AAAA or CNAME
+            value: The value/content of the record e.g., an IP address
+            ttl: Optional TTL value for the record. Defaults to the zone default TTL.
+
+        Returns:
+            `hetzner_dns_api.types.DnsRecordResponse`
+
+        """
         path = f"/records/{record_id}"
         record_type = RecordTypeCreatable(record_type)
         request = DnsRecordRequest(
             zone_id=zone_id, name=name, value=value, type=record_type, ttl=ttl
         )
         body = encode_object(request)
-        response = self.client.put(
+        response = self._client.put(
             path, headers={"Content-Type": "application/json"}, content=body
         )
         self._validate_response(response)
@@ -158,17 +243,25 @@ class DnsRecord(BaseApiView):
     def delete(self, record_id: str) -> None:
         """Delete a record."""
         path = f"/records/{record_id}"
-        response = self.client.delete(path)
+        response = self._client.delete(path)
         self._validate_response(response)
 
     @contextmanager
     def bulk_create(self) -> Iterator[DnsBulkCreateRecord]:
-        """Start a bulk creation context."""
-        manager = DnsBulkCreateRecord(self.client)
+        """Start a bulk creation context.
+
+        This instantiates a context manager that allows you to create multiple
+        records in a single API request.
+        """
+        manager = DnsBulkCreateRecord(self._client)
         yield manager
 
     @contextmanager
     def bulk_update(self) -> Iterator[DnsBulkUpdateRecord]:
-        """Start a bulk update context."""
-        manager = DnsBulkUpdateRecord(self.client)
+        """Start a bulk update context.
+
+        This instantiates a context manager that allows you to update multiple
+        records in a single API request.
+        """
+        manager = DnsBulkUpdateRecord(self._client)
         yield manager

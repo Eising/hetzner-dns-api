@@ -21,7 +21,7 @@ class BaseApiView(abc.ABC):
 
     def __init__(self, client: httpx.Client) -> None:
         """Create api view handler."""
-        self.client: httpx.Client = client
+        self._client: httpx.Client = client
 
     def _validate_response(self, response: httpx.Response) -> None:
         """Validate response."""

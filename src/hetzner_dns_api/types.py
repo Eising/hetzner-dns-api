@@ -215,3 +215,13 @@ class DnsBulkRecordUpdateResponse(msgspec.Struct):
 
     records: list[DnsRecordResponse]
     failed_records: list[DnsRecordRequest]
+
+
+__all__ = [
+    "DnsBulkRecordCreateResponse",
+    "DnsBulkRecordUpdateResponse",
+    "DnsZoneValidationResponse",
+    "DnsRecordRequest",
+    "DnsRecordResponse",
+    "DnsZoneResponse",
+]
