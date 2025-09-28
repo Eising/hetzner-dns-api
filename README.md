@@ -5,6 +5,20 @@ Records hosted at Hetzner.
 
 This library includes both a library and a CLI application.
 
+The module is not ready for public usage just yet. The absence of a proper test
+suite is the final barrier. That said, I've tested the most operations already
+with live data with great success.
+
+I have created this module as I couldn't find an existing one, and I needed one
+for my ansible playbooks.
+
+## Installation
+
+This module is nearly ready for its stage debut. Once ready, you will be able to
+use your favorite package manager, such as `uv` to install it directly from
+PyPi.
+
+For now, you must clone this repository and install it using `uv`.
 
 ## CLI usage
 
@@ -61,6 +75,9 @@ Usage: hetzner-api zone export [OPTIONS] ZONE_ID_OR_NAME OUTPUT
 Options:
   --help  Show this message and exit.
 </pre>
+
+Output can be a filename or `-` for stdout.
+
 ### Records
 List, create, modify, or delete records
 
