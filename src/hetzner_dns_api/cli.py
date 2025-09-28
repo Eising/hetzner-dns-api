@@ -1,25 +1,29 @@
 """CLI."""
 
+import sys
+import enum
+from typing import cast, TextIO
+
 import msgspec
-from typing import cast
 import click
 
 from tabulate import tabulate
-from hetzner_dns_api.types import DnsRecordResponse, DnsZoneResponse, RecordTypeCreatable
+from hetzner_dns_api.base import HetznerApiError, HetznerApiNotFoundError
+from hetzner_dns_api.types import (
+    DnsRecordResponse,
+    RecordType,
+    RecordTypeCreatable,
+)
 from hetzner_dns_api.decoding import enc_hook
 from .api import HetznerDNS
 
 
-def print_zone(zone: DnsZoneResponse) -> None:
-    """Print a zone for CLI."""
-    verified = "Verified"
-    # header = f"{zone.id:<45}{click.style(zone.name, bold=True):<25}"
-    # header = f"  {click.style(zone.name, bold=True)} ID {zone.id}"
-    zone_name = zone.name
-    if not zone.verified:
-        verified = "Not Verified"
+class OutputFormat(enum.StrEnum):
+    """Output format."""
 
-    click.echo(f"{zone.id:<25}{zone_name:<25}{verified:<10}")
+    TABLE = "table"
+    SIMPLE_TABLE = "simple_table"
+    JSON = "json"
 
 
 def print_record(record: DnsRecordResponse):
@@ -29,6 +33,17 @@ def print_record(record: DnsRecordResponse):
     click.echo(
         f"Record ID: {record.id:<40}{record.name}\t{record.type !s}\t{record.value}\t{record.ttl or ''}"
     )
+
+
+def lookup_zone_id(api: HetznerDNS, id_or_name: str) -> str | None:
+    """Lookup a zone ID by either ID or domain name."""
+    if "." in id_or_name:
+        return api.zones.get_id(id_or_name)
+    try:
+        zone = api.zones.get(id_or_name)
+        return zone.id
+    except HetznerApiError:
+        return None
 
 
 @click.group()
@@ -45,16 +60,54 @@ def cli_zone():
 
 
 @cli_zone.command("list")
+@click.option("--name")
+@click.option("--search", is_flag=True)
+@click.option("--plain", help="Plain table without fancy text formatting", is_flag=True)
 @click.pass_context
-def cli_zone_list(ctx: click.Context) -> None:
+def cli_zone_list(
+    ctx: click.Context, name: str | None, search: bool, plain: bool
+) -> None:
     """List DNS zones."""
     api = cast(HetznerDNS, ctx.obj)
+    table_format = "simple" if plain else "rounded_grid"
 
-    click.echo(click.style("All Zones", bold=True))
-    click.echo(f"{'Zone ID':<25}{'Name':<25}{'Verified':<10}")
-    click.echo(f"{'-' * 60}")
-    for zone in api.zones.all():
-        print_zone(zone)
+    entries = [zone for zone in api.zones.all(name=name, search=search)]
+    if not entries:
+        click.echo("No zones found.")
+        sys.exit()
+
+    # longest_line = max([len(line) for line in entries])
+    headers = ["Zone ID", "Name", "Verified", "Created", "Last Modified"]
+    rows = [
+        [
+            zone.id,
+            zone.name,
+            "Verified" if zone.verified else "Not Verified",
+            zone.created,
+            zone.modified,
+        ]
+        for zone in entries
+    ]
+
+    click.echo(tabulate(rows, headers=headers, tablefmt=table_format))
+
+
+@cli_zone.command("export")
+@click.argument("zone-id-or-name")
+@click.argument("output", type=click.File(mode="w+"))
+@click.pass_context
+def cli_zone_export(ctx: click.Context, zone_id_or_name: str, output: TextIO) -> None:
+    """Export a zone."""
+    api = cast(HetznerDNS, ctx.obj)
+
+    zone_id = lookup_zone_id(api, zone_id_or_name)
+    if not zone_id:
+        raise click.ClickException(f"No zone found with ID or name {zone_id_or_name}")
+
+    exported = api.zones.export_zone(zone_id)
+    result = output.write(exported)
+    if not output.isatty():
+        click.echo(f"Wrote {result} characters to {output.name}.")
 
 
 @cli.group("record")
@@ -63,28 +116,108 @@ def cli_record():
 
 
 @cli_record.command("list")
-@click.argument("zone-id")
+@click.argument("zone-id-or-name")
+@click.option("--plain", help="Plain table without fancy text formatting", is_flag=True)
 @click.pass_context
-def cli_record_list(ctx: click.Context, zone_id: str) -> None:
+def cli_record_list(ctx: click.Context, zone_id_or_name: str, plain: bool) -> None:
     """List records in a zone."""
+    table_format = "simple" if plain else "rounded_grid"
     api = cast(HetznerDNS, ctx.obj)
 
-    records = [
-        msgspec.to_builtins(record, enc_hook=enc_hook)
-        for record in api.records.all(zone_id)
-    ]
+    zone_id = lookup_zone_id(api, zone_id_or_name)
+    if not zone_id:
+        raise click.ClickException(f"No zone found with ID or name {zone_id_or_name}")
 
-    print(tabulate(records, headers="keys"))
+    try:
+        records = [
+            msgspec.to_builtins(record, enc_hook=enc_hook)
+            for record in api.records.all(zone_id)
+        ]
+    except HetznerApiNotFoundError as e:
+        raise click.ClickException(f"Zone ID {zone_id} not found.") from e
+
+    print(tabulate(records, headers="keys", tablefmt=table_format))
+
 
 @cli_record.command("create")
-@click.argument("zone-id")
+@click.argument("zone-id-or-name")
 @click.argument("name")
 @click.argument("type", type=click.Choice(RecordTypeCreatable, case_sensitive=False))
 @click.argument("value")
 @click.option("--ttl", type=click.INT)
 @click.pass_context
-def cli_record_add(ctx: click.Context, zone_id: str, name: str, type: RecordTypeCreatable, value: str, ttl: int | None) -> None:
+def cli_record_add(
+    ctx: click.Context,
+    zone_id_or_name: str,
+    name: str,
+    type: RecordTypeCreatable,
+    value: str,
+    ttl: int | None,
+) -> None:
     """Create a record in the given zone."""
     api = cast(HetznerDNS, ctx.obj)
+    zone_id = lookup_zone_id(api, zone_id_or_name)
+
+    if not zone_id:
+        raise click.ClickException(f"No zone found with ID or name {zone_id_or_name}")
+
     new_record = api.records.create(zone_id, name, type, value, ttl)
     click.echo(f"Record ID {new_record.id} created")
+
+
+@cli_record.command("update")
+@click.argument("record-id")
+@click.option("--name")
+@click.option("--type", type=click.Choice(RecordTypeCreatable, case_sensitive=False))
+@click.option("--value")
+@click.option("--ttl", type=click.INT)
+@click.pass_context
+def cli_record_update(
+    ctx: click.Context,
+    record_id: str,
+    name: str | None,
+    type: RecordTypeCreatable | None,
+    value: str | None,
+    ttl: int | None,
+) -> None:
+    """Update a record."""
+    if not any(
+        (
+            name,
+            type,
+            value,
+            ttl,
+        )
+    ):
+        raise click.ClickException("Must specify at least one field to update.")
+
+    api = cast(HetznerDNS, ctx.obj)
+    record = api.records.get(record_id)
+    new_type: RecordTypeCreatable | RecordType = type or record.type
+
+    updated = api.records.update(
+        record_id=record_id,
+        zone_id=record.zone_id,
+        name=name or record.name,
+        record_type=new_type,
+        value=value or record.value,
+        ttl=ttl or record.ttl,
+    )
+
+    click.echo(f"Updated record {record_id} in zone {record.zone_id}")
+    print_record(updated)
+
+
+@cli_record.command("delete")
+@click.argument("record-id")
+@click.pass_context
+def cli_record_delete(ctx: click.Context, record_id: str) -> None:
+    """Delete a record."""
+    api = cast(HetznerDNS, ctx.obj)
+    record = api.records.get(record_id)
+    click.echo(click.style("Delete record", bold=True))
+    print_record(record)
+    if click.confirm("Are you sure you want to delete the record?"):
+        api.records.delete(record_id)
+    else:
+        click.echo("Aborted.")

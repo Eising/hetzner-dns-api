@@ -113,15 +113,26 @@ class DnsZone(BaseApiView):
         zone = self.get(zone_id)
         return zone.records_count
 
+    def get_id(self, name: str) -> str | None:
+        """Get the ID of a domain."""
+        params: dict[str, str] = {"name": name}
+        response = self.client.get("/zones", params=params)
+        zones = decode_object(response.text, type=DnsZoneListResponse)
+        if zones.zones:
+            return zones.zones[0].id
+        return None
+
     def all(
-        self, name: str | None = None, search_name: str | None = None
+        self,
+        name: str | None = None,
+        search: bool = False,
     ) -> Iterator[DnsZoneResponse]:
         """Iterate all zones."""
         params: dict[str, str] = {}
-        if name:
+        if name and not search:
             params["name"] = name
-        elif search_name:
-            params["search_name"] = search_name
+        elif name and search:
+            params["search_name"] = name
 
         response = self.client.get("/zones", params=params)
         iterator = ZoneIterator(self.client, response)
