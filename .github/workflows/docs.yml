@@ -27,7 +27,7 @@ jobs:
         run: uv sync --locked --group docs
 
       - name: Build documentation
-        run: uv run pdoc --no-show-source -o pages metapatch
+        run: uv run pdoc --no-show-source -o pages hetzner_dns_api
 
       - uses: actions/upload-pages-artifact@v3
         with:
