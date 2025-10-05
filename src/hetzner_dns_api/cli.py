@@ -58,6 +58,7 @@ def format_txt_verification(txt_verification: DnsZoneTxtVerification | None) -> 
 @click.group()
 @click.option("--api-key", envvar="HETZNER_API_KEY")
 @click.option("--debug", is_flag=True)
+@click.version_option()
 @click.pass_context
 def cli(ctx: click.Context, api_key: str, debug: bool) -> None:
     """Hetzner DNS API CLI client.
