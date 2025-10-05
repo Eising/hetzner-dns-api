@@ -15,7 +15,12 @@ from werkzeug import Response
 from hetzner_dns_api.decoding import enc_hook
 
 from hetzner_dns_api.records import DnsRecord
-from hetzner_dns_api.types import DnsBulkRecordCreateResponse, DnsRecordResponse, DnsZoneResponse
+from hetzner_dns_api.types import (
+    DnsBulkRecordCreateResponse,
+    DnsRecordResponse,
+    DnsZoneResponse,
+    DnsZoneValidationResponse,
+)
 from hetzner_dns_api.zone import DnsZone
 from .factories import (
     DnsBulkRecordCreateResponseFactory,
@@ -26,6 +31,7 @@ from .factories import (
     DnsZoneGetResponseFactory,
     DnsZoneListResponseFactory,
     DnsZoneResponseFactory,
+    DnsZoneValidationResponseFactory,
     PageMetaFactory,
     PageMetaResponseFactory,
 )
@@ -34,6 +40,7 @@ DEFAULT_PER_PAGE = 100  # hetzner returns 100 objects per page
 
 
 logger.enable("hetzner_dns_api")
+
 
 class TestDnsRecord:
     """Test DNS records."""
@@ -158,7 +165,9 @@ class TestZones:
     """Test zone API methods."""
 
     @pytest.fixture(autouse=True)
-    def generate_responses(self, httpserver: HTTPServer, total_mock_records: int, faker: Faker) -> None:
+    def generate_responses(
+        self, httpserver: HTTPServer, total_mock_records: int, faker: Faker
+    ) -> None:
         """Generate responses.
 
         We only have one method here, so we can be a little bit more thorough in
@@ -186,8 +195,12 @@ class TestZones:
                 last_page = 1
                 total_entries = 3
 
-
-            page_meta = PageMetaFactory(page=page, per_page=DEFAULT_PER_PAGE, last_page=last_page, total_entries=total_entries)
+            page_meta = PageMetaFactory(
+                page=page,
+                per_page=DEFAULT_PER_PAGE,
+                last_page=last_page,
+                total_entries=total_entries,
+            )
             pagination = PageMetaResponseFactory(pagination=page_meta)
             if not entries:
                 # This can be made more accurate for scenarios with odd numbers > per-page
@@ -211,18 +224,42 @@ class TestZones:
 
         def get_handler(request: Request) -> Response:
             """Handle get one requests."""
-            zone_id = request.path.split("/")[-1]
+            zone_id = request.path.split("/")[1]
             name = faker.domain_name()
             zone_data = DnsZoneResponseFactory(name=name, id=zone_id)
             response_data = DnsZoneGetResponseFactory(zone=zone_data)
             encoded = msgspec.json.encode(response_data, enc_hook=enc_hook)
             return Response(encoded, content_type="application/json")
 
+        def export_handler(request: Request) -> Response:
+            """Handle export requests."""
+            text = faker.paragraph(nb_sentences=5)
+            return Response(text, content_type="text/plain")
 
-        httpserver.expect_request("/zones", method="GET").respond_with_handler(all_handler)
-        httpserver.expect_request("/zones", method="POST").respond_with_handler(create_handler)
-        httpserver.expect_request(re.compile(r"/zones/.*"), method="GET").respond_with_handler(get_handler)
+        def validate_handler(request: Request) -> Response:
+            """Handle zone validation requests."""
+            response_data = DnsZoneValidationResponseFactory()
+            encoded = msgspec.json.encode(response_data, enc_hook=enc_hook)
+            return Response(encoded, content_type="application/json")
 
+        httpserver.expect_request("/zones", method="GET").respond_with_handler(
+            all_handler
+        )
+        httpserver.expect_request("/zones", method="POST").respond_with_handler(
+            create_handler
+        )
+        httpserver.expect_request(
+            re.compile(r"/zones/[^/]+"), method="GET"
+        ).respond_with_handler(get_handler)
+        httpserver.expect_request(
+            re.compile(r"/zones/.*/export"), method="GET"
+        ).respond_with_handler(export_handler)
+        httpserver.expect_request(
+            re.compile(r"/zones/.*/import"), method="POST"
+        ).respond_with_handler(get_handler)
+        httpserver.expect_request(
+            re.compile(r"/zones/.*/validate"), method="POST"
+        ).respond_with_handler(validate_handler)
 
     @pytest.fixture(name="dns_api")
     def api_fixture(self, httpserver: HTTPServer):
@@ -250,7 +287,6 @@ class TestZones:
         response = dns_api.get_id(name)
         assert response is not None
 
-
     def test_zone_list_searchname(self, dns_api: DnsZone, faker: Faker) -> None:
         """List with search name query."""
         name = faker.domain_word()
@@ -269,3 +305,24 @@ class TestZones:
         zone_id = faker.pystr(min_chars=32, max_chars=32)
         response = dns_api.get(zone_id)
         assert isinstance(response, DnsZoneResponse)
+
+    def test_export(self, dns_api: DnsZone, faker: Faker) -> None:
+        """Test zone export."""
+        zone_id = faker.pystr(min_chars=32, max_chars=32)
+        response = dns_api.export_zone(zone_id)
+        assert response is not None
+
+    def test_import(self, dns_api: DnsZone, faker: Faker) -> None:
+        """Test zone import."""
+        zone_id = faker.pystr(min_chars=32, max_chars=32)
+        zone_data = faker.paragraph(nb_sentences=5)
+        response = dns_api.import_zone(zone_id, zone_data)
+        assert isinstance(response, DnsZoneResponse)
+
+    def test_validate(self, dns_api: DnsZone, faker: Faker) -> None:
+        """Test zone validation."""
+        zone_id = faker.pystr(min_chars=32, max_chars=32)
+        zone_data = faker.paragraph(nb_sentences=5)
+        response = dns_api.validate_zone(zone_id, zone_data)
+        assert response is not None
+        assert isinstance(response, DnsZoneValidationResponse)

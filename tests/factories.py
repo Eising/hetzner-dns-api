@@ -19,6 +19,7 @@ from hetzner_dns_api.types import (
     DnsZoneGetResponse,
     DnsZoneListResponse,
     DnsZoneResponse,
+    DnsZoneValidationResponse,
     HetznerTime,
     PageMetaResponse,
     PageMeta,
@@ -190,3 +191,19 @@ class DnsZoneGetResponseFactory(factory.Factory[DnsZoneGetResponse]):
         model = DnsZoneGetResponse
 
     zone = factory.SubFactory(DnsZoneResponseFactory)
+
+
+class DnsZoneValidationResponseFactory(factory.Factory[DnsZoneValidationResponse]):
+    """Dns Zone Validation Response Factory."""
+
+    @override
+    class Meta:
+        model = DnsZoneValidationResponse
+
+    parsed_records = factory.Faker("random_digit_not_null")
+
+    @factory.lazy_attribute
+    def valid_records(self):
+        """Valid records attribute."""
+        valid_records = DnsRecordResponseFactory.build_batch(self.parsed_records)
+        return valid_records
