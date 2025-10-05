@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-hetzner-api = "hetzner_dns_api.cli:cli"
+hetzner-dns = "hetzner_dns_api.cli:cli"
 
 [build-system]
 requires = ["uv_build>=0.8.8,<0.9.0"]

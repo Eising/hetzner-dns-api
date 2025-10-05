@@ -23,8 +23,8 @@ For now, you must clone this repository and install it using `uv`.
 ## CLI usage
 
 <pre>
-$ hetzner-api --help
-Usage: hetzner-api [OPTIONS] COMMAND [ARGS]...
+$ hetzner-dns --help
+Usage: hetzner-dns [OPTIONS] COMMAND [ARGS]...
 
   Hetzner DNS API CLI client.
 
@@ -48,9 +48,9 @@ List or export zones.
 Zone import is not implemented yet.
 
 <pre>
-$ hetzner-api zone list --help
+$ hetzner-dns zone list --help
 
-Usage: hetzner-api zone list [OPTIONS]
+Usage: hetzner-dns zone list [OPTIONS]
 
   List DNS zones.
 
@@ -68,7 +68,7 @@ The `export` subcommand takes either a zone-id or the domain name.
 
 <pre>
 $ hetzner-api zone export --help
-Usage: hetzner-api zone export [OPTIONS] ZONE_ID_OR_NAME OUTPUT
+Usage: hetzner-dns zone export [OPTIONS] ZONE_ID_OR_NAME OUTPUT
 
   Export a zone.
 
@@ -82,7 +82,7 @@ Output can be a filename or `-` for stdout.
 List, create, modify, or delete records
 
 ``` text
-Usage: hetzner-api record [OPTIONS] COMMAND [ARGS]...
+Usage: hetzner-dns record [OPTIONS] COMMAND [ARGS]...
 
 Options:
   --help  Show this message and exit.
@@ -97,7 +97,7 @@ Commands:
 #### Create
 
 <pre>
-Usage: hetzner-api record create [OPTIONS] ZONE_ID_OR_NAME NAME {A|AAAA|NS|MX|
+Usage: hetzner-dns record create [OPTIONS] ZONE_ID_OR_NAME NAME {A|AAAA|NS|MX|
                                  CNAME|RP|TXT|SOA|HINFO|SRV|DANE|TLSA|DS|CAA}
                                  VALUE
 
@@ -111,14 +111,14 @@ Options:
 </pre>
 Example:
 
-`hetzner-api record create example.com www A 192.0.2.1`
+`hetzner-dns record create example.com www A 192.0.2.1`
 
 If TTL is not specified, it will default to the default value for the Zone.
 
 #### List
 
 <pre>
-Usage: hetzner-api record list [OPTIONS] ZONE_ID_OR_NAME
+Usage: hetzner-dns record list [OPTIONS] ZONE_ID_OR_NAME
 
   List records in a zone.
 
@@ -133,7 +133,7 @@ be given as either the ID or the domain itself.
 #### Update
 
 <pre>
-Usage: hetzner-api record update [OPTIONS] RECORD_ID
+Usage: hetzner-dns record update [OPTIONS] RECORD_ID
 
   Update a record.
 
@@ -152,12 +152,12 @@ The record ID can be retrieved with the `list` command.
 
 Example:
 
-`hetzner-api record update example.com MYRECORDID --ttl 600`
+`hetzner-dns record update example.com MYRECORDID --ttl 600`
 
 #### Delete
 
 <pre>
-Usage: hetzner-api record delete [OPTIONS] RECORD_ID
+Usage: hetzner-dns record delete [OPTIONS] RECORD_ID
 
   Delete a record.
 
