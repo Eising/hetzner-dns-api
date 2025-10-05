@@ -3,22 +3,14 @@
 This library provides an API as well as a CLI tool to manage DNS Zones and
 Records hosted at Hetzner.
 
-This library includes both a library and a CLI application.
-
-The module is not ready for public usage just yet. The absence of a proper test
-suite is the final barrier. That said, I've tested the most operations already
-with live data with great success.
+This library includes both a library and a small CLI application.
 
 I have created this module as I couldn't find an existing one, and I needed one
 for my ansible playbooks.
 
 ## Installation
 
-This module is nearly ready for its stage debut. Once ready, you will be able to
-use your favorite package manager, such as `uv` to install it directly from
-PyPi.
-
-For now, you must clone this repository and install it using `uv`.
+The library is available on PyPi, and can be installed with `pip install hetzner-dns-api`
 
 ## CLI usage
 
