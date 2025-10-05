@@ -235,7 +235,7 @@ class DnsZone(BaseApiView):
         Returns:
             `hetzner_dns_api.types.DnsZoneResponse`
         """
-        path = f"/zones/{zone_id}"
+        path = f"/zones/{zone_id}/import"
         response = self._client.post(
             path, headers={"Content-Type": "text/plain"}, content=content
         )
