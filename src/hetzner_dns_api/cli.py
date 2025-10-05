@@ -7,10 +7,12 @@ from typing import cast, TextIO
 import msgspec
 import click
 
+from loguru import logger
 from tabulate import tabulate
 from hetzner_dns_api.base import HetznerApiError, HetznerApiNotFoundError
 from hetzner_dns_api.types import (
     DnsRecordResponse,
+    DnsZoneTxtVerification,
     RecordType,
     RecordTypeCreatable,
 )
@@ -31,7 +33,7 @@ def print_record(record: DnsRecordResponse):
     # click.echo(f"{click.style(record.id, bold=True)}:")
 
     click.echo(
-        f"Record ID: {record.id:<40}{record.name}\t{record.type !s}\t{record.value}\t{record.ttl or ''}"
+        f"Record ID: {record.id:<40}{record.name}\t{record.type!s}\t{record.value}\t{record.ttl or ''}"
     )
 
 
@@ -46,10 +48,18 @@ def lookup_zone_id(api: HetznerDNS, id_or_name: str) -> str | None:
         return None
 
 
+def format_txt_verification(txt_verification: DnsZoneTxtVerification | None) -> str:
+    """Format TXT verification structure."""
+    if not txt_verification:
+        return ""
+    return msgspec.json.encode(txt_verification, enc_hook=enc_hook).decode()
+
+
 @click.group()
 @click.option("--api-key", envvar="HETZNER_API_KEY")
+@click.option("--debug", is_flag=True)
 @click.pass_context
-def cli(ctx: click.Context, api_key: str) -> None:
+def cli(ctx: click.Context, api_key: str, debug: bool) -> None:
     """Hetzner DNS API CLI client.
 
     Manage your hetzner DNS zones and entries.
@@ -59,6 +69,8 @@ def cli(ctx: click.Context, api_key: str) -> None:
 
     """
     ctx.obj = HetznerDNS(api_key)
+    if debug:
+        logger.enable("hetzner_dns_api")
 
 
 @cli.group("zone")
@@ -73,9 +85,14 @@ def cli_zone():
 @click.option("--name")
 @click.option("--search", is_flag=True)
 @click.option("--plain", help="Plain table without fancy text formatting", is_flag=True)
+@click.option("--full", help="Show all fields.", is_flag=True)
 @click.pass_context
 def cli_zone_list(
-    ctx: click.Context, name: str | None, search: bool, plain: bool
+    ctx: click.Context,
+    name: str | None,
+    search: bool,
+    plain: bool,
+    full: bool,
 ) -> None:
     """List DNS zones.
 
@@ -90,17 +107,57 @@ def cli_zone_list(
         sys.exit()
 
     # longest_line = max([len(line) for line in entries])
-    headers = ["Zone ID", "Name", "Verified", "Created", "Last Modified"]
-    rows = [
-        [
-            zone.id,
-            zone.name,
-            "Verified" if zone.verified else "Not Verified",
-            zone.created,
-            zone.modified,
+
+    if full:
+        headers = [
+            "ID",
+            "Created",
+            "Modified",
+            "Name",
+            "Secondary DNS",
+            "Legacy DNS Host",
+            "Legacy NS",
+            "NS",
+            "Owner",
+            "Paused",
+            "Records Count",
+            "Registrar",
+            "TTL",
+            "Status",
         ]
-        for zone in entries
-    ]
+
+        rows = [
+            [
+                zone.id,
+                zone.created,
+                zone.modified,
+                zone.name,
+                str(zone.is_secondary_dns),
+                zone.legacy_dns_host or "",
+                ", ".join(zone.legacy_ns) or "",
+                ", ".join(zone.ns),
+                zone.owner,
+                str(zone.paused),
+                zone.records_count,
+                zone.registrar,
+                zone.ttl,
+                zone.status.value,
+            ]
+            for zone in entries
+        ]
+
+    else:
+        headers = ["Zone ID", "Name", "Verified", "Created", "Last Modified"]
+        rows = [
+            [
+                zone.id,
+                zone.name,
+                "Verified" if zone.verified else "Not Verified",
+                zone.created,
+                zone.modified,
+            ]
+            for zone in entries
+        ]
 
     click.echo(tabulate(rows, headers=headers, tablefmt=table_format))
 

@@ -1,4 +1,5 @@
 """Types."""
+
 import enum
 from datetime import datetime
 from typing import override
@@ -53,7 +54,6 @@ class QueryParams(msgspec.Struct):
     search_name: str | None = None
 
 
-
 class ZoneStatus(str, enum.Enum):
     """Zone status."""
 
@@ -106,7 +106,6 @@ class DnsZoneTxtVerification(msgspec.Struct):
 
     name: str
     token: str
-
 
 
 class DnsZoneResponse(msgspec.Struct):
@@ -168,6 +167,7 @@ class DnsRecordListResponse(msgspec.Struct):
 
     records: list[DnsRecordResponse]
 
+
 class DnsRecordItemResponse(msgspec.Struct):
     """Dns Record Item Response."""
 
@@ -200,11 +200,11 @@ class DnsRecordUpdateRequest(msgspec.Struct):
     value: str
     ttl: int | None = None
 
+
 class DnsRecordBulkUpdateRequest(msgspec.Struct):
     """Dns Record Bulk Update Request."""
 
     records: list[DnsRecordUpdateRequest] = msgspec.field(default_factory=list)
-
 
 
 class DnsBulkRecordCreateResponse(msgspec.Struct):

@@ -1,10 +1,10 @@
 """DNS Record API view."""
 
-
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import override
 import httpx
+from loguru import logger
 from .base import BaseApiView
 from .types import (
     DnsBulkRecordCreateResponse,
@@ -21,7 +21,10 @@ from .types import (
 
 from .decoding import decode_object, encode_object
 
+logger.disable("hetzner_dns_api")
+
 __docformat__ = "google"
+
 
 class DnsBulkUpdateRecord(BaseApiView):
     """DNS Bulk Update handler."""
@@ -153,6 +156,7 @@ class DnsRecord(BaseApiView):
         """
         response = self._client.get("/records", params={"zone_id": zone_id})
         self._validate_response(response)
+        logger.opt(lazy=True).debug(response.text)
         records = decode_object(response.text, type=DnsRecordListResponse)
         for record in records.records:
             yield record

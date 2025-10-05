@@ -9,6 +9,7 @@ __docformat__ = "google"
 
 BASE_API_URL = "https://dns.hetzner.com/api/v1"
 
+
 class HetznerDNS:
     """Hetzner DNS API client."""
 

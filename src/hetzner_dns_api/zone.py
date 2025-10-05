@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from typing import Self
 import httpx
 import json
+from loguru import logger
 import msgspec
 
 from .types import (
@@ -17,6 +18,9 @@ from .base import HetznerApiError, BaseApiView
 from .decoding import decode_object
 
 __docformat__ = "google"
+
+
+logger.disable("hetzner_dns_api")
 
 
 class ZoneIterator:
@@ -50,6 +54,7 @@ class ZoneIterator:
         """Extract content from response."""
         try:
             data = decode_object(response.text, DnsZoneListResponse)
+            logger.opt(lazy=True).debug(response.text)
         except msgspec.ValidationError as e:
             parsed_json = response.json()
             formatted_json = json.dumps(parsed_json, indent=2)
@@ -175,7 +180,7 @@ class DnsZone(BaseApiView):
         params: dict[str, str | int] = {"name": name}
         if ttl:
             params["ttl"] = ttl
-        response = self._client.post("/zones", params=params)
+        response = self._client.post("/zones", json=params)
         self._validate_response(response)
         data = decode_object(response.text, DnsZoneGetResponse)
         return data.zone
